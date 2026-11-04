@@ -1,0 +1,12 @@
+# Données sources (trop volumineuses, téléchargeables sur Kaggle)
+data/raw/*
+!data/raw/.gitkeep
+
+# Fichiers temporaires Power BI
+*.pbix.bak
+~$*
+
+# Système
+Thumbs.db
+desktop.ini
+.DS_Store
