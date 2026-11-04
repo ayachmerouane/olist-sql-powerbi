@@ -12,12 +12,49 @@ En tant que Data Analyst, l'objectif est de construire un tableau de bord permet
 
 ## Questions métier
 
-1. **Ventes** : comment évolue le chiffre d'affaires ? Quelle saisonnalité ?
-2. **Produits** : quelles catégories génèrent le plus de revenus (règle des 80/20) ?
-3. **Logistique** : quelle part des commandes est livrée en retard, et dans quelles régions ?
-4. **Satisfaction** : quel est l'impact des retards sur les notes clients ?
-5. **Clients** : quel est le taux de réachat ? Quels sont les segments RFM ?
-6. **Vendeurs** : quels vendeurs performent le mieux, et lesquels posent problème ?
+### 1. Ventes : comment évolue l'activité ?
+- Comment évoluent le chiffre d'affaires et le nombre de commandes mois par mois ?
+- Quelle est la croissance par rapport à l'année précédente ?
+- Y a-t-il une saisonnalité (Black Friday, fin d'année) ?
+- À quels jours et à quelles heures les clients commandent-ils le plus ?
+
+*Indicateurs : CA, nombre de commandes, panier moyen, croissance N-1 — Tables : `fact_ventes`, `fact_commandes`, `dim_date`*
+
+### 2. Produits : qu'est-ce qui se vend ?
+- Quelles catégories génèrent le plus de chiffre d'affaires ?
+- La règle des 80/20 se vérifie-t-elle (20 % des catégories font-elles 80 % du CA) ?
+- Quelles catégories ont les frais de port les plus élevés par rapport à leur prix ?
+
+*Indicateurs : CA par catégorie, part du CA cumulée, ratio port / prix — Tables : `fact_ventes`, `dim_produit`*
+
+### 3. Logistique : livre-t-on à temps ?
+- Quel est le délai moyen de livraison ?
+- Quelle part des commandes est livrée en retard ?
+- Quels États et quelles régions sont les plus touchés par les retards ?
+- Le délai a-t-il évolué entre 2016 et 2018 ?
+
+*Indicateurs : délai moyen, % de retards, écart par rapport à la date prévue — Tables : `fact_commandes`, `dim_client`*
+
+### 4. Satisfaction : les clients sont-ils contents ?
+- Quelle est la note moyenne des avis ?
+- Quel est l'impact d'un retard sur la note ?
+- Quelles catégories reçoivent le plus d'avis négatifs ?
+
+*Indicateurs : note moyenne, % d'avis négatifs (≤ 2), note selon le retard — Tables : `fact_commandes`, `fact_ventes`, `dim_produit`*
+
+### 5. Clients : fidélise-t-on ?
+- Combien de clients différents ont commandé ?
+- Quelle part des clients a passé plus d'une commande (taux de réachat) ?
+- Quels sont les segments de clients selon la méthode RFM (Récence, Fréquence, Montant) ?
+
+*Indicateurs : nombre de clients uniques, taux de réachat, segments RFM — Tables : `fact_commandes`, `dim_client`*
+
+### 6. Vendeurs : qui performe ?
+- Quels sont les 10 vendeurs qui réalisent le plus gros chiffre d'affaires ?
+- Quels vendeurs cumulent retards et mauvaises notes ?
+- La distance entre l'État du vendeur et celui du client influence-t-elle le délai ?
+
+*Indicateurs : CA par vendeur, % de retards par vendeur, note moyenne par vendeur — Tables : `fact_ventes`, `fact_commandes`, `dim_vendeur`*
 
 ## KPI suivis
 
