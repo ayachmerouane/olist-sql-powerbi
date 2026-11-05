@@ -1,4 +1,4 @@
-/* =====================================================================
+﻿/* =====================================================================
    05_create_dw_views.sql
    Construit le schéma en étoile du schéma dw, utilisé par Power BI.
 
@@ -8,6 +8,7 @@
                                         │
                                    dim_vendeur
 
+   Référence  : ref_etats (table des 27 États du Brésil)
    Dimensions : dim_client, dim_produit, dim_vendeur (vues), dim_date (table)
    Faits      : fact_commandes (1 ligne = 1 commande)
                 fact_ventes    (1 ligne = 1 article d'une commande)
@@ -17,9 +18,55 @@
      - avis en double                    -> une note moyenne par commande
      - commandes non livrées             -> délai et retard laissés à NULL
      - dates avec heure                  -> converties en DATE pour dim_date
+     - codes d'États ambigus sur les cartes (PA = Panama ?) -> noms complets
    ===================================================================== */
 
 USE OlistDB;
+GO
+
+/* ---------------------------------------------------------------------
+   ref_etats : les 27 États du Brésil (code, nom complet, région)
+   Les codes à 2 lettres sont ambigus pour les cartes Power BI
+   (PA est localisé au Panama, AM en Arménie...) : on utilise donc
+   le nom complet de l'État pour le géocodage.
+   --------------------------------------------------------------------- */
+DROP TABLE IF EXISTS dw.ref_etats;
+GO
+
+CREATE TABLE dw.ref_etats (
+    code_etat CHAR(2)      NOT NULL PRIMARY KEY,
+    nom_etat  NVARCHAR(40) NOT NULL,
+    region    NVARCHAR(20) NOT NULL
+);
+
+INSERT INTO dw.ref_etats (code_etat, nom_etat, region) VALUES
+    ('AC', N'Acre',                N'Norte'),
+    ('AP', N'Amapá',               N'Norte'),
+    ('AM', N'Amazonas',            N'Norte'),
+    ('PA', N'Pará',                N'Norte'),
+    ('RO', N'Rondônia',            N'Norte'),
+    ('RR', N'Roraima',             N'Norte'),
+    ('TO', N'Tocantins',           N'Norte'),
+    ('AL', N'Alagoas',             N'Nordeste'),
+    ('BA', N'Bahia',               N'Nordeste'),
+    ('CE', N'Ceará',               N'Nordeste'),
+    ('MA', N'Maranhão',            N'Nordeste'),
+    ('PB', N'Paraíba',             N'Nordeste'),
+    ('PE', N'Pernambuco',          N'Nordeste'),
+    ('PI', N'Piauí',               N'Nordeste'),
+    ('RN', N'Rio Grande do Norte', N'Nordeste'),
+    ('SE', N'Sergipe',             N'Nordeste'),
+    ('DF', N'Distrito Federal',    N'Centro-Oeste'),
+    ('GO', N'Goiás',               N'Centro-Oeste'),
+    ('MT', N'Mato Grosso',         N'Centro-Oeste'),
+    ('MS', N'Mato Grosso do Sul',  N'Centro-Oeste'),
+    ('ES', N'Espírito Santo',      N'Sudeste'),
+    ('MG', N'Minas Gerais',        N'Sudeste'),
+    ('RJ', N'Rio de Janeiro',      N'Sudeste'),
+    ('SP', N'São Paulo',           N'Sudeste'),
+    ('PR', N'Paraná',              N'Sul'),
+    ('RS', N'Rio Grande do Sul',   N'Sul'),
+    ('SC', N'Santa Catarina',      N'Sul');
 GO
 
 /* ---------------------------------------------------------------------
@@ -33,15 +80,11 @@ SELECT
     c.customer_zip_code_prefix AS code_postal,
     c.customer_city            AS ville,
     c.customer_state           AS etat,
-    CASE
-        WHEN c.customer_state IN ('SP','RJ','MG','ES')                          THEN 'Sudeste'
-        WHEN c.customer_state IN ('PR','SC','RS')                               THEN 'Sul'
-        WHEN c.customer_state IN ('DF','GO','MT','MS')                          THEN 'Centro-Oeste'
-        WHEN c.customer_state IN ('BA','SE','AL','PE','PB','RN','CE','PI','MA') THEN 'Nordeste'
-        ELSE 'Norte'
-    END                        AS region,
-    c.customer_state + ', Brazil' AS etat_pays   -- aide le géocodage des cartes Power BI
-FROM stg.customers c;
+    e.nom_etat                 AS etat_nom,
+    e.region,
+    e.nom_etat + N', Brazil'   AS etat_pays   -- nom complet : géocodage fiable des cartes Power BI
+FROM stg.customers c
+LEFT JOIN dw.ref_etats e ON e.code_etat = c.customer_state;
 GO
 
 /* ---------------------------------------------------------------------
@@ -53,15 +96,11 @@ SELECT
     s.seller_zip_code_prefix AS code_postal,
     s.seller_city            AS ville,
     s.seller_state           AS etat,
-    CASE
-        WHEN s.seller_state IN ('SP','RJ','MG','ES')                          THEN 'Sudeste'
-        WHEN s.seller_state IN ('PR','SC','RS')                               THEN 'Sul'
-        WHEN s.seller_state IN ('DF','GO','MT','MS')                          THEN 'Centro-Oeste'
-        WHEN s.seller_state IN ('BA','SE','AL','PE','PB','RN','CE','PI','MA') THEN 'Nordeste'
-        ELSE 'Norte'
-    END                      AS region,
-    s.seller_state + ', Brazil' AS etat_pays
-FROM stg.sellers s;
+    e.nom_etat               AS etat_nom,
+    e.region,
+    e.nom_etat + N', Brazil' AS etat_pays
+FROM stg.sellers s
+LEFT JOIN dw.ref_etats e ON e.code_etat = s.seller_state;
 GO
 
 /* ---------------------------------------------------------------------
@@ -205,9 +244,10 @@ JOIN stg.orders o ON o.order_id = i.order_id;
 GO
 
 /* ---------- Contrôle : nombre de lignes par objet dw ----------
-   Attendu : dim_client 99441 / dim_vendeur 3095 / dim_produit 32951 /
+   Attendu : ref_etats 27 / dim_client 99441 / dim_vendeur 3095 / dim_produit 32951 /
              dim_date 1096 / fact_commandes 99441 / fact_ventes 112650 */
-SELECT 'dim_client'     AS objet, COUNT(*) AS nb_lignes FROM dw.dim_client     UNION ALL
+SELECT 'ref_etats'      AS objet, COUNT(*) AS nb_lignes FROM dw.ref_etats      UNION ALL
+SELECT 'dim_client',              COUNT(*)              FROM dw.dim_client     UNION ALL
 SELECT 'dim_vendeur',             COUNT(*)              FROM dw.dim_vendeur    UNION ALL
 SELECT 'dim_produit',             COUNT(*)              FROM dw.dim_produit    UNION ALL
 SELECT 'dim_date',                COUNT(*)              FROM dw.dim_date       UNION ALL
